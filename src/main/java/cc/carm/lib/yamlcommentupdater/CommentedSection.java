@@ -8,13 +8,13 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.Set;
 
-public interface CommentedYAML {
+public interface CommentedSection {
+    
+    String serializeValue(@NotNull String key, @NotNull Object value);
 
     default @NotNull Set<String> getKeys() {
         return getKeys(null, true);
     }
-
-    String serializeValue(@NotNull String key, @NotNull Object value);
 
     @Contract("null,_ -> !null;!null,_ -> _")
     @Nullable Set<String> getKeys(@Nullable String sectionKey, boolean deep);
@@ -25,5 +25,8 @@ public interface CommentedYAML {
 
     @Nullable
     List<String> getHeaderComments(@Nullable String key);
+
+    @Nullable
+    List<String> getFooterComments(@Nullable String key);
 
 }
