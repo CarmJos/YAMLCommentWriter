@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -42,41 +43,37 @@ public class CommentedYAMLWriter {
     }
 
     protected void write(@NotNull CommentedSection source, @NotNull BufferedWriter writer) throws IOException {
-        boolean lastNewline = writeComments(writer, source.getHeaderComments(null), "", false, true);
-        for (String fullKey : source.getKeys()) {
-            Object currentValue = source.getValue(fullKey);
+        // File Header
+        if (writeComments(writer, source.getHeaderComments(null), "", false, true)) {
+            writer.newLine();
+        }
 
-            String indents = indents(fullKey);
-            if (indents.isEmpty()) {
-                writer.newLine();
-                if (!lastNewline) writer.newLine();
-            }
+        for (String rootKey : source.getKeys(null, false)) {
+            write(source, writer, rootKey);
+            writer.newLine();
+            writer.newLine();
+        }
 
-            writeComments(writer, source.getHeaderComments(fullKey), indents, false, true);
+        // File Footer
+        writeComments(writer, source.getFooterComments(null), "", true, false);
 
-            String inlineComment = source.getInlineComment(fullKey);
+        writer.close();
+    }
 
-            String[] splitFullKey = fullKey.split(Pattern.quote(separator));
-            String trailingKey = splitFullKey[splitFullKey.length - 1];
+    protected void write(@NotNull CommentedSection source, @NotNull BufferedWriter writer, @NotNull String fullKey) throws IOException {
+        Object currentValue = source.getValue(fullKey);
+        String indents = indents(fullKey);
 
-            Set<String> innerKeys = source.getKeys(fullKey, false);
-            if (innerKeys != null) {
-                if (commentEmpty && innerKeys.isEmpty()) {
-                    writer.write("# ");
-                }
+        // header for current key
+        writeComments(writer, source.getHeaderComments(fullKey), indents, false, true);
 
-                writer.write(indents + trailingKey + ":");
-                if (inlineComment != null && !inlineComment.isEmpty()) {
-                    writer.write(" # " + inlineComment);
-                }
-                if (innerKeys.isEmpty()) {
-                    writer.write(" {}");
-                    if (indents.isEmpty()) writer.newLine();
-                }
-                writer.newLine();
-                continue;
-            }
+        String[] splitFullKey = fullKey.split(Pattern.quote(separator));
+        String trailingKey = splitFullKey[splitFullKey.length - 1];
 
+        String inlineComment = source.getInlineComment(fullKey);
+
+        Set<String> innerKeys = source.getKeys(fullKey, false);
+        if (innerKeys == null) {
             String yaml;
             if (currentValue == null) {
                 yaml = (commentEmpty ? "# " : "") + fullKey + ": ";
@@ -87,29 +84,42 @@ public class CommentedYAMLWriter {
 
             if (inlineComment != null && !inlineComment.isEmpty()) {
                 if (yaml.contains("\n")) {
-                    // section为多行内容，需要 InlineComment 加在首行末尾
+                    // For multi-line section
+                    // InlineComment must be added to the end of the first line
                     String[] splitLine = yaml.split("\n", 2);
                     yaml = splitLine[0] + " # " + inlineComment + "\n" + splitLine[1];
                 } else {
-                    // 其他情况下就直接加载后面就好。
                     yaml += " # " + inlineComment;
                 }
             }
 
-            lastNewline = !indents.isEmpty();
             writer.write(indents + yaml.replace("\n", "\n" + indents));
-
-            if (writeComments(writer, source.getFooterComments(fullKey), indents, true, false)) {
-                lastNewline = true;
+        } else {
+            if (commentEmpty && innerKeys.isEmpty()) {
+                writer.write("# ");
             }
 
-            if (lastNewline) writer.newLine();
+            writer.write(indents + trailingKey + ":");
+            if (inlineComment != null && !inlineComment.isEmpty()) {
+                writer.write(" # " + inlineComment);
+            }
+            if (innerKeys.isEmpty()) {
+                writer.write(" {}");
+            }
+            writer.newLine();
 
+            ArrayList<String> strings = new ArrayList<>(innerKeys);
+            for (int i = 0; i < strings.size(); i++) {
+                String innerKey = strings.get(i);
+                write(source, writer, fullKey + "." + innerKey);
+                if (i != strings.size()-1) {
+                    writer.newLine();
+                }
+            }
         }
 
-        writeComments(writer, source.getFooterComments(null), "", true, false);
-
-        writer.close();
+        // footer for current key
+        writeComments(writer, source.getFooterComments(fullKey), indents, true, false);
     }
 
     protected boolean writeComments(@NotNull BufferedWriter writer, @Nullable List<String> comments, @NotNull String indents,
