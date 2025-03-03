@@ -76,7 +76,7 @@ public class CommentedYAMLWriter {
         if (innerKeys == null) {
             String yaml;
             if (currentValue == null) {
-                yaml = (commentEmpty ? "# " : "") + fullKey + ": ";
+                yaml = (commentEmpty ? "# " : "") + trailingKey + ": ";
             } else {
                 yaml = source.serializeValue(trailingKey, currentValue);
                 yaml = yaml.substring(0, yaml.length() - 1);
@@ -100,11 +100,11 @@ public class CommentedYAMLWriter {
             }
 
             writer.write(indents + trailingKey + ":");
-            if (inlineComment != null && !inlineComment.isEmpty()) {
-                writer.write(" # " + inlineComment);
-            }
             if (innerKeys.isEmpty()) {
                 writer.write(" {}");
+            }
+            if (inlineComment != null && !inlineComment.isEmpty()) {
+                writer.write(" # " + inlineComment);
             }
             writer.newLine();
 
@@ -112,7 +112,7 @@ public class CommentedYAMLWriter {
             for (int i = 0; i < strings.size(); i++) {
                 String innerKey = strings.get(i);
                 write(source, writer, fullKey + "." + innerKey);
-                if (i != strings.size()-1) {
+                if (i != strings.size() - 1) {
                     writer.newLine();
                 }
             }
